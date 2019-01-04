@@ -22,11 +22,6 @@ Parameters:
     Default: 192.168.128.0/18
     Description: CidrBlock for subnet 02 within the EKS VPC
 
-  KubeSubnet03Block:
-    Type: String
-    Default: 192.168.192.0/18
-    Description: CidrBlock for subnet 03 within the EKS VPC
-
   Ec2VpcBlock:
     Type: String
     Default: 10.0.0.0/16
@@ -41,11 +36,6 @@ Parameters:
     Type: String
     Default: 10.0.2.0/24
     Description: CidrBlock for subnet 02 within the EC2 VPC
-
-  Ec2Subnet03Block:
-    Type: String
-    Default: 10.0.3.0/24
-    Description: CidrBlock for subnet 03 within the EC2 VPC
 
   SpinnakerBucketName:
     Type: String
@@ -67,7 +57,6 @@ Metadata:
           - KubeVpcBlock
           - KubeSubnet01Block
           - KubeSubnet02Block
-          - KubeSubnet03Block
       -
         Label:
           default: "EC2 Network Configuration"
@@ -75,7 +64,6 @@ Metadata:
           - Ec2VpcBlock
           - Ec2Subnet01Block
           - Ec2Subnet02Block
-          - Ec2Subnet03Block
 
 Resources:
   EKSVPC:
@@ -204,24 +192,6 @@ Resources:
       - Key: Name
         Value: !Join ["", ["eks-vpc.internal.", !Select ['1', !GetAZs {Ref: "AWS::Region"}]]]
 
-  EKSSubnet03:
-    Type: AWS::EC2::Subnet
-    Metadata:
-      Comment: EKS Subnet 03
-    Properties:
-      AvailabilityZone:
-        Fn::Select:
-        - '2'
-        - Fn::GetAZs:
-            Ref: AWS::Region
-      CidrBlock:
-        Ref: KubeSubnet03Block
-      VpcId:
-        Ref: EKSVPC
-      Tags:
-      - Key: Name
-        Value: !Join ["", ["eks-vpc.internal.", !Select ['2', !GetAZs {Ref: "AWS::Region"}]]]
-
   EC2Subnet01:
     Type: AWS::EC2::Subnet
     Metadata:
@@ -266,28 +236,6 @@ Resources:
         Key: cloudformation-stack
         Value: !Ref AWS::StackId
 
-  EC2Subnet03:
-    Type: AWS::EC2::Subnet
-    Metadata:
-      Comment: EC2 Subnet 03
-    Properties:
-      AvailabilityZone:
-        Fn::Select:
-        - '2'
-        - Fn::GetAZs:
-            Ref: AWS::Region
-      CidrBlock:
-        Ref: Ec2Subnet03Block
-      VpcId:
-        Ref: EC2VPC
-      Tags:
-      -
-        Key: Name
-        Value: !Join ["", ["ec2-vpc.internal.", !Select ['2', !GetAZs {Ref: "AWS::Region"}]]]
-      -
-        Key: cloudformation-stack
-        Value: !Ref AWS::StackId
-
   EKSSubnet01RouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
@@ -300,12 +248,6 @@ Resources:
       SubnetId: !Ref EKSSubnet02
       RouteTableId: !Ref EKSRouteTable
 
-  EKSSubnet03RouteTableAssociation:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Properties:
-      SubnetId: !Ref EKSSubnet03
-      RouteTableId: !Ref EKSRouteTable
-
   EC2Subnet01RouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
@@ -316,12 +258,6 @@ Resources:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
       SubnetId: !Ref EC2Subnet02
-      RouteTableId: !Ref EC2RouteTable
-
-  EC2Subnet03RouteTableAssociation:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Properties:
-      SubnetId: !Ref EC2Subnet03
       RouteTableId: !Ref EC2RouteTable
 
   EKSControlPlaneSecurityGroup:
@@ -403,20 +339,19 @@ Resources:
         SubnetIds:
           - !Ref EKSSubnet01
           - !Ref EKSSubnet02
-          - !Ref EKSSubnet03
       RoleArn: !GetAtt EKSClusterRole.Arn
 
 Outputs:
 
   EKSSubnetIds:
     Description: All subnets in the EKS VPC
-    Value: !Join [ ",", [ !Ref EKSSubnet01, !Ref EKSSubnet02, !Ref EKSSubnet03 ] ]
+    Value: !Join [ ",", [ !Ref EKSSubnet01, !Ref EKSSubnet02 ] ]
     Export:
       Name: !Join [ "-", [ !Ref "AWS::StackName", "eks-subnet-ids" ] ]
 
   EC2SubnetIds:
     Description: All subnets in the EC2 VPC
-    Value: !Join [ ",", [ !Ref EC2Subnet01, !Ref EC2Subnet02, !Ref EC2Subnet03]]
+    Value: !Join [ ",", [ !Ref EC2Subnet01, !Ref EC2Subnet02]]
     Export:
       Name: !Join [ "-", [ !Ref "AWS::StackName", "ec2-subnet-ids" ] ]
 
