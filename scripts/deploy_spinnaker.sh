@@ -49,23 +49,28 @@ if [ -z "${REGION}" ]; then
     REGION="ap-southeast-1"
 fi
 
-if [ "${USE_SSM_FOR_SECRETS}" == true ]; then
-    LB_SG=""
-    AUTHN_CLIENT_ID=$(aws ssm get-parameters --names github-authn-client-id --with-decryption --query Parameters[0].Value --output text)
-    AUTHN_CLIENT_SECRET=$(aws ssm get-parameters --names github-authn-client-secret --with-decryption --query Parameters[0].Value --output text)
-    AUTHZ_ACCESS_TOKEN=$(aws ssm get-parameters --names github-authz-token --with-decryption --query Parameters[0].Value --output text)
-    GITHUB_ORG=$(aws ssm get-parameters --names github-org --with-decryption --query Parameters[0].Value --output text)
-    PREFIX_LIST=$(aws ssm get-parameters --names sg-prefix-list --with-decryption --query Parameters[0].Value --output text)
-    if [ "${AUTHN_CLIENT_ID}" = "None" ] || [ "${AUTHN_CLIENT_SECRET}" = "None" ] || [ "${AUTHZ_ACCESS_TOKEN}" = "None" ] || [ "${PREFIX_LIST}" = "None" ]; then
-        echo "One of github-authn-client-id, github-authn-client-secret, github-authz-token, or sg-prefix-list is not in SSM"
-        exit 1
-    fi
-fi
+# Load environment variables from SSM
+SSM_NAMESPACE="/spinnaker/lite/"
+aws ssm get-parameters-by-path --path ${SSM_NAMESPACE} --with-decryption --output text | awk 'BEGIN { ORS="" }; {n=split($4, key, "/"); print key[n] "=" $6 "\n" }' > .env
+eval $(cat .env)
 
-BAKING_VPC=$(aws ec2 describe-vpcs --filters Name=cidr,Values=172.31.0.0/16 --query Vpcs[0].VpcId --output text)
+# if [ "${USE_SSM_FOR_SECRETS}" == true ]; then
+#     LB_SG=""
+#     AUTHN_CLIENT_ID=$(aws ssm get-parameters --names github-authn-client-id --with-decryption --query Parameters[0].Value --output text)
+#     AUTHN_CLIENT_SECRET=$(aws ssm get-parameters --names github-authn-client-secret --with-decryption --query Parameters[0].Value --output text)
+#     AUTHZ_ACCESS_TOKEN=$(aws ssm get-parameters --names github-authz-token --with-decryption --query Parameters[0].Value --output text)
+#     GITHUB_ORG=$(aws ssm get-parameters --names github-org --with-decryption --query Parameters[0].Value --output text)
+#     PREFIX_LIST=$(aws ssm get-parameters --names sg-prefix-list --with-decryption --query Parameters[0].Value --output text)
+#     if [ "${AUTHN_CLIENT_ID}" = "None" ] || [ "${AUTHN_CLIENT_SECRET}" = "None" ] || [ "${AUTHZ_ACCESS_TOKEN}" = "None" ] || [ "${PREFIX_LIST}" = "None" ]; then
+#         echo "One of github-authn-client-id, github-authn-client-secret, github-authz-token, or sg-prefix-list is not in SSM"
+#         exit 1
+#     fi
+# fi
+
+# BAKING_VPC=$(aws ec2 describe-vpcs --filters Name=cidr,Values=172.31.0.0/16 --query Vpcs[0].VpcId --output text)
 ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 SPINNAKER_BUCKET=$(aws cloudformation describe-stacks --stack-name ${EKS_EC2_VPC_STACK_NAME} --query 'Stacks[0].Outputs[?OutputKey==`SpinnakerDataBucket`].OutputValue' --output text | cut -d ":" -f6)
-SPINNAKER_MANAGED_ROLE="role/SpinnakerManaged"
+# SPINNAKER_MANAGED_ROLE="role/SpinnakerManaged"
 
 echo "Creating some kubernetes resources before running halyard"
 kubectl apply -f resources/kubernetes/lb-services.yaml -n spinnaker
@@ -117,21 +122,21 @@ fi
 
 sleep 30
 
-echo "Executing Halyard commands to create a Halyard configuration file"
-hal --color false config provider aws account add my-aws-account \
-    --account-id ${ACCOUNT_ID} \
-    --assume-role ${SPINNAKER_MANAGED_ROLE} \
-    --regions us-west-2
+# echo "Executing Halyard commands to create a Halyard configuration file"
+# hal --color false config provider aws account add my-aws-account \
+#     --account-id ${ACCOUNT_ID} \
+#     --assume-role ${SPINNAKER_MANAGED_ROLE} \
+#     --regions ap-southeast-1
 
-hal --color false config provider aws bakery edit --aws-vpc-id ${BAKING_VPC}
-hal --color false config provider aws enable
+# hal --color false config provider aws bakery edit --aws-vpc-id ${BAKING_VPC}
+# hal --color false config provider aws enable
 
 hal --color false config provider kubernetes account add my-k8s-account --provider-version v2 --context spinnaker-context --namespaces default,spinnaker
 hal --color false config features edit --artifacts true
 hal --color false config provider kubernetes enable
 
-hal --color false config provider ecs account add my-ecs-account --aws-account my-aws-account
-hal --color false config provider ecs enable
+# hal --color false config provider ecs account add my-ecs-account --aws-account my-aws-account
+# hal --color false config provider ecs enable
 
 hal --color false config storage s3 edit \
     --bucket ${SPINNAKER_BUCKET} \
@@ -142,16 +147,16 @@ hal --color false config storage edit --type s3
 hal --color false config security ui edit --override-base-url http://${DECK_ADDRESS}
 hal --color false config security api edit --override-base-url http://${GATE_ADDRESS}
 
-if [ ! -z "${AUTHN_CLIENT_ID}" ] && [ ! -z "${AUTHN_CLIENT_SECRET}" ] && [ ! -z "${AUTHZ_ACCESS_TOKEN}" ] && [ ! -z "${GITHUB_ORG}" ]; then
-    hal --color false config security authn oauth2 edit \
-      --client-id ${AUTHN_CLIENT_ID} \
-      --client-secret ${AUTHN_CLIENT_SECRET} \
-      --provider github
-    hal --color false config security authn oauth2 enable
-    ## Once this https://github.com/spinnaker/spinnaker/issues/3154 is fixed we can use just run the commands
-#    sed -ie "s|roleProviderType:\ GITHUB|roleProviderType:\ GITHUB\n          baseUrl: https://api.github.com\n          accessToken: ${AUTHZ_ACCESS_TOKEN}\n          organization: ${GITHUB_ORG}|g" /home/spinnaker/.hal/config
-#    hal --color false config security authz enable
-fi
+# if [ ! -z "${AUTHN_CLIENT_ID}" ] && [ ! -z "${AUTHN_CLIENT_SECRET}" ] && [ ! -z "${AUTHZ_ACCESS_TOKEN}" ] && [ ! -z "${GITHUB_ORG}" ]; then
+#     hal --color false config security authn oauth2 edit \
+#       --client-id ${AUTHN_CLIENT_ID} \
+#       --client-secret ${AUTHN_CLIENT_SECRET} \
+#       --provider github
+#     hal --color false config security authn oauth2 enable
+#     ## Once this https://github.com/spinnaker/spinnaker/issues/3154 is fixed we can use just run the commands
+# #    sed -ie "s|roleProviderType:\ GITHUB|roleProviderType:\ GITHUB\n          baseUrl: https://api.github.com\n          accessToken: ${AUTHZ_ACCESS_TOKEN}\n          organization: ${GITHUB_ORG}|g" /home/spinnaker/.hal/config
+# #    hal --color false config security authz enable
+# fi
 
 hal --color false config deploy edit --type distributed --account-name my-k8s-account
 
