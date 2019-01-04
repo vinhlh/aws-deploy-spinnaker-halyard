@@ -166,18 +166,18 @@ hal --color false config version edit --version ${SPINNAKER_VERSION}
 #cp resources/halyard/deck.yml /home/spinnaker/.hal/default/service-settings/deck.yml
 
 # Configure Jenkins
-echo ${JENKIN_1_PASSWORD} | hal config ci jenkins master add ${JENKIN_1_MAME} \
+echo ${JENKIN_1_PASSWORD} | hal --color false config ci jenkins master add ${JENKIN_1_MAME} \
     --address ${JENKIN_1_ADDRESS} \
     --username ${JENKIN_1_USERNAME} \
     --password
 
-echo ${JENKIN_2_PASSWORD} | hal config ci jenkins master add ${JENKIN_2_MAME} \
+echo ${JENKIN_2_PASSWORD} | hal --color false config ci jenkins master add ${JENKIN_2_MAME} \
     --address ${JENKIN_2_ADDRESS} \
     --username ${JENKIN_2_USERNAME} \
     --password
 
 # Configure OAuth2 with Google
-hal config security authn oauth2 edit \
+hal --color false config security authn oauth2 edit \
   --client-id ${AUTHN_CLIENT_ID} \
   --client-secret ${AUTHN_CLIENT_SECRET} \
   --user-info-requirements hd=${AUTHN_DOMAIN} \
