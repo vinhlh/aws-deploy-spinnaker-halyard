@@ -46,7 +46,7 @@ done
 EKS_EC2_VPC_STACK_NAME="spin-eks-ec2-vpc"
 
 if [ -z "${REGION}" ]; then
-    REGION="us-west-2"
+    REGION="ap-southeast-1"
 fi
 
 if [ "${USE_SSM_FOR_SECRETS}" == true ]; then
