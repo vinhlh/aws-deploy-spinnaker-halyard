@@ -53,6 +53,7 @@ fi
 SSM_NAMESPACE="/spinnaker/lite/"
 aws ssm get-parameters-by-path --path ${SSM_NAMESPACE} --with-decryption --output text | awk 'BEGIN { ORS="" }; {n=split($4, key, "/"); print key[n] "=" $6 "\n" }' > .env
 eval $(cat .env)
+rm -rf .env
 
 # if [ "${USE_SSM_FOR_SECRETS}" == true ]; then
 #     LB_SG=""
